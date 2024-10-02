@@ -6,7 +6,6 @@ langchain
 langchain-groq
 ultralytics
 roboflow
-opencv-contrib-python
 torch
 torchvision
 timm
