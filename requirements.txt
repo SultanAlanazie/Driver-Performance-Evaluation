@@ -1,2 +1,5 @@
 streamlit
 openai
+langchain
+ultralytics
+opencv-python-headless
