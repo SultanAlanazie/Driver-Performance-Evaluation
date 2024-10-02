@@ -1,5 +1,12 @@
+opencv-python-headless
+opencv-python
 streamlit
 openai
 langchain
+langchain-groq
 ultralytics
-opencv-python-headless
+roboflow
+opencv-contrib-python
+torch
+torchvision
+timm
