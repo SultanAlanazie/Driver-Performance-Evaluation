@@ -7,11 +7,9 @@ langchain-groq
 langchain-core
 langchain-text-splitters
 langsmith
-temp
 ultralytics
 roboflow
 torch
-tempfile
 easyocr
 torchvision
 timm
