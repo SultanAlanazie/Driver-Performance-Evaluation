@@ -348,7 +348,7 @@ elif st.session_state.page == "Speed Model":
                                 if speed_sign_texts:
                                     speed_sign_text = ''.join([text for text, prob in speed_sign_texts])
                                     if speed_sign_text:
-                                        st.write(f"Speed sign detected at frame {frame_count}: {speed_sign_text}")
+                                        
                                         last_detected_speed_sign_text = speed_sign_text
 
                     # Check for speed violations at fixed intervals
