@@ -4,11 +4,9 @@ streamlit
 openai
 langchain
 langchain-groq
-langsmith
 ultralytics
 roboflow
 torch
-easyocr
 torchvision
 timm
 temp
