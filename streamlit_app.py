@@ -7,6 +7,15 @@ from langchain import LLMChain
 from langchain_groq import ChatGroq
 from ultralytics import YOLO
 
+# Create buttons for each page
+if st.sidebar.button("ChatBot"):
+    st.session_state.page = "Welcome"
+if st.sidebar.button("Stop Sign Model"):
+    st.session_state.page = "Stop Sign Model"
+if st.sidebar.button("Speed Model"):
+    st.session_state.page = "Speed Model"
+if st.sidebar.button("Distance Model"):
+    st.session_state.page = "Distance Model"
 # Initialize ChatGroq LLM
 groq_api_key = st.secrets["groq"]["groq_api_key"]
 llm = ChatGroq(
@@ -16,12 +25,54 @@ llm = ChatGroq(
     timeout=None,
     max_retries=2,
     api_key=groq_api_key
-)
+) ## the website that i got those instruction is from General Department of Traffic website -> Traffic Safety -> Safe Drive
+DRIVING_ASSISTANT_PROMPT_TEMPLATE = """
+### تعليمات:
+أنت مساعد ذكي متقدم ومتخصص في تقديم المعلومات والمساعدة المتعلقة بالقيادة باللغة العربية. مهمتك هي إرشاد السائقين حول إجراءات القيادة الآمنة والأنظمة المرورية المعتمدة. لقد تم تدريبي على ما يلي:
+
+**واجبات السائق قبل تشغيل المركبة:**
+• تفقد المركبة من الخارج، والتأكد من حالة الإطارات والطريق.
+• إحكام إغلاق الأبواب.
+• ضبط المقعد وعجلة القيادة.
+• ربط أحزمة الأمان لجميع الركاب.
+• ضبط المرايا العاكسة بشكل صحيح.
+• التحقق من مؤشرات الوقود والحرارة.
+
+**تشغيل المركبة:**  
+• اتباع خطوات القيادة الآمنة وفقاً لتعليمات وقواعد المرور.
+
+**الوقوف بشكل آمن:**
+• فحص الطريق من خلال المرآة العاكسة.
+• إعطاء إشارة الوقوف.
+• تخفيف الضغط على دواسة البنزين تدريجياً.
+• الضغط التدريجي على دواسة الفرامل حتى التوقف.
+• شد فرامل اليد بعد الوقوف.
+
+**علامات وإشارات المرور:**
+• اللوحات التحذيرية والتنظيمية والإعلامية.
+• الحواجز، البوابات، والأقماع.
+• العلامات الأرضية مثل الدهانات والإشارات المرورية.
+• إشارات المرور الضوئية.
+• أجهزة التحكم المرورية في مناطق العمل مثل اللوحات الرأسية وبراميل التوجيه والسهام المضاءة.
+
+اعتمد على هذه المعلومات للإجابة على استفسارات المستخدم حول القيادة الآمنة والصحيحة.
+
+في حال كان السؤال غير واضح أو خارج نطاق هذه المعلومات، يرجى طلب التوضيح أو الرد بأدب بأنك لا تستطيع الإجابة.
+
+**إجابتك يجب أن تكون باللغة العربية**
+
+**if he asks a question related to the instructions, provide him with the website for the General Department of Traffic 'https://www.moi.gov.sa' placeholder for the website: General Department of Traffic**
+
+---
+### السؤال: {subject}
+---
+### الإجابة:
+"""
 
 # Define prompt template for the chatbot
 prompt = PromptTemplate(
     input_types={'subject': 'string', 'language': 'string'},
-    template="""You are a driving assistant bot. do not get out of the topic about driving and answer the subject: {subject}, that the user provided if it's related to the driving, **your answers will be in arabic**"""
+    template=DRIVING_ASSISTANT_PROMPT_TEMPLATE
 )
 
 # Initialize the chain for the chatbot
@@ -33,15 +84,6 @@ st.sidebar.title("Navigation")
 if 'page' not in st.session_state:
     st.session_state.page = "Welcome"
 
-# Create buttons for each page
-if st.sidebar.button("ChatBot"):
-    st.session_state.page = "Welcome"
-if st.sidebar.button("Stop Sign Model"):
-    st.session_state.page = "Stop Sign Model"
-if st.sidebar.button("Speed Model"):
-    st.session_state.page = "Speed Model"
-if st.sidebar.button("Distance Model"):
-    st.session_state.page = "Distance Model"
 
 # Welcome Page with Chatbot
 if st.session_state.page == "Welcome":
