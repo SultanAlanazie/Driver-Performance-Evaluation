@@ -3,6 +3,7 @@ opencv-python-headless
 streamlit
 openai
 langchain
+langchain-community
 langchain-groq
 ultralytics
 roboflow
@@ -14,4 +15,4 @@ easyocr
 pytesseract
 tesseract
 IPython
-pydantic==1.10.2
+pydantic

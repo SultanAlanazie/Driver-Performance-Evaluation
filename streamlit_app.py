@@ -5,7 +5,7 @@ import temp
 import tempfile
 import numpy as np
 from langchain.prompts import PromptTemplate
-from langchain import LLMChain
+from langchain.chains import LLMChain
 from langchain_groq import ChatGroq
 from ultralytics import YOLO
 import easyocr
