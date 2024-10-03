@@ -11,6 +11,9 @@ from ultralytics import YOLO
 import easyocr
 from IPython.display import display, Image
 
+# Sidebar for navigation
+st.sidebar.title("Navigation")
+
 # Create buttons for each page
 if st.sidebar.button("ChatBot"):
     st.session_state.page = "Welcome"
@@ -65,9 +68,6 @@ prompt = PromptTemplate(
 
 # Initialize the chain for the chatbot
 chain = LLMChain(llm=llm, prompt=prompt)
-
-# Sidebar for navigation
-st.sidebar.title("Navigation")
 # Initialize a session state variable for page tracking
 if 'page' not in st.session_state:
     st.session_state.page = "Welcome"
