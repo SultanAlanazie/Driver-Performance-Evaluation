@@ -29,7 +29,8 @@ llm = ChatGroq(
     timeout=None,
     max_retries=2,
     api_key=groq_api_key
-) ## the website that i got those instruction is from General Department of Traffic website -> Traffic Safety -> Safe Drive
+) 
+## the website that i got those instruction is from General Department of Traffic website -> Traffic Safety -> Safe Drive
 DRIVING_ASSISTANT_PROMPT_TEMPLATE = """
 ### تعليمات:
 أنت مساعد ذكي متقدم ومتخصص في استخدام النطام باللغة العربية. مهمتك هي إرشاد مستخدمين النظام حول كيفيه استخدام النظام. لقد تم تدريبي على ما يلي:
