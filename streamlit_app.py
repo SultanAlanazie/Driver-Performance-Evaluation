@@ -1,11 +1,14 @@
 import streamlit as st
 import cv2
 import csv
+import temp
+import tempfile
 import numpy as np
 from langchain.prompts import PromptTemplate
 from langchain import LLMChain
 from langchain_groq import ChatGroq
 from ultralytics import YOLO
+import easyocr
 from IPython.display import display, Image
 
 # Create buttons for each page
@@ -260,97 +263,132 @@ elif st.session_state.page == "Stop Sign Model":
                 st.write(f"Results saved at: {csv_file_path}")
                 st.success("Video analyzed successfully!")
 # Speed Model Logic
+
 elif st.session_state.page == "Speed Model":
     st.title("Speed Model")
+    reader = easyocr.Reader(['en'])
 
-    # Allow users to upload a video with a size limit
+    # File upload section with size check
     uploaded_file = st.file_uploader("Upload your driving video for speed detection (max size: 100MB)", type=["mp4", "mov", "avi"])
 
     if uploaded_file:
-        file_size_mb = uploaded_file.size / (1024 * 1024)  # Convert size to MB
+        file_size_mb = uploaded_file.size / (1024 * 1024)  # Convert file size to MB
         st.write(f"Uploaded file size: {file_size_mb:.2f} MB")
 
-        if file_size_mb > 100:  # Check if the file size exceeds 100 MB
+        if file_size_mb > 100:
             st.error("File too large! Please upload a file smaller than 100MB.")
         else:
             # Display the uploaded video
             st.video(uploaded_file)
 
-            # Load the speed detection model
+            # Save the uploaded video to a temporary file
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_video_file:
+                temp_video_file.write(uploaded_file.read())
+                video_path = temp_video_file.name
+
+            # Load the YOLO speed detection model
             model = YOLO('models/SpeedModel.pt')
 
-            # Read the uploaded video using OpenCV
-            video_bytes = uploaded_file.read()
-            video_path = "/tmp/uploaded_video_speed.mp4"  # Temporarily save the video
-            with open(video_path, 'wb') as f:
-                f.write(video_bytes)
+            # Preprocessing functions
+            def preprocess_image(image):
+                gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+                denoised_image = cv2.fastNlMeansDenoising(gray_image, None, 30, 7, 21)
+                return cv2.equalizeHist(denoised_image)
+
+            def enhance_image(image):
+                if image is None or image.size == 0:
+                    raise ValueError("Input image is None or empty. Cannot enhance.")
+                blurred = cv2.GaussianBlur(image, (5, 5), 0)
+                return blurred
+
+            def resize_image(image, scale_factor=2):
+                width = int(image.shape[1] * scale_factor)
+                height = int(image.shape[0] * scale_factor)
+                return cv2.resize(image, (width, height), interpolation=cv2.INTER_LINEAR)
+
             def extract_region(image, box):
                 x1, y1, x2, y2 = map(int, box)
-            # Function to detect speed signs and violations
+                # Ensure the box is within the image bounds
+                height, width = image.shape[:2]
+                x1, x2 = max(0, x1), min(width, x2)
+                y1, y2 = max(0, y1), min(height, y2)
+
+                if x1 >= x2 or y1 >= y2:
+                    return None  # Return None if the region is invalid
+                return image[y1:y2, x1:x2]
+
+            def read_text_with_easyocr(image):
+                preprocessed_image = enhance_image(image)
+                if preprocessed_image is None or preprocessed_image.size == 0:
+                    print("Warning: preprocessed_image is None or empty. Skipping OCR.")
+                    return []
+                resized_image = resize_image(preprocessed_image)
+                results = reader.readtext(resized_image)
+                return [(text, prob) for (bbox, text, prob) in results if text.isdigit()]
+
+            # Speed sign detection function
             def detect_speed_signs(video_path, confidence_threshold=0.5, frame_interval=60, ocr_interval=10):
                 cap = cv2.VideoCapture(video_path)
                 if not cap.isOpened():
                     st.error("Error: Could not open video.")
-                    return 0
+                    return None
 
                 frame_count = 0
                 speed_violations = 0
-                last_detected_speed_sign_text = None
+                last_detected_speed_sign_text = None  # Store last detected speed sign
 
                 while cap.isOpened():
                     ret, frame = cap.read()
                     if not ret:
                         break
 
-                    gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-                    # Object detection every frame_interval frames
                     if frame_count % frame_interval == 0:
                         results = model.track(frame, persist=True, show=False)
+                        best_conf, best_box = 0, None
 
                         for result in results:
-                            boxes = result.boxes
-                            for box in boxes:
-                                conf = box.conf[0]
-                                cls = int(box.cls[0])
+                            boxes = result.boxes.xyxy.cpu().numpy()
+                            confidences = result.boxes.conf.cpu().numpy()
+                            for i, box in enumerate(boxes):
+                                conf = confidences[i]
+                                if conf > confidence_threshold and int(result.boxes.cls[i]) == 0:  # Speed sign detected
+                                    if conf > best_conf:
+                                        best_conf = conf
+                                        best_box = box
 
-                                # Check for speed sign detection (class 0)
-                                if conf > confidence_threshold and cls == 0:
-                                    speed_sign_region = extract_region(frame, box.xyxy[0].cpu().numpy())
-                                    speed_sign_texts = read_text_with_easyocr(speed_sign_region)
-
-                                    # Extract digit text from the detected speed sign
-                                    speed_sign_text = ''.join([text for text, prob in speed_sign_texts if text.isdigit()])
-
+                        if best_box is not None:
+                            # Extract the region of the speed sign and read text
+                            speed_sign_region = extract_region(frame, best_box)
+                            if speed_sign_region is not None and speed_sign_region.size > 0:
+                                speed_sign_texts = read_text_with_easyocr(speed_sign_region)
+                                if speed_sign_texts:
+                                    speed_sign_text = ''.join([text for text, prob in speed_sign_texts])
                                     if speed_sign_text:
+                                        st.write(f"Speed sign detected at frame {frame_count}: {speed_sign_text}")
                                         last_detected_speed_sign_text = speed_sign_text
-                                        st.write(f"Speed sign detected: {speed_sign_text} km/h at frame {frame_count}")
 
-                    # Perform OCR on fixed box every ocr_interval frames
+                    # Check for speed violations at fixed intervals
                     if frame_count % ocr_interval == 0 and last_detected_speed_sign_text:
-                        fixed_box = (850, 950, 50, 90)  # Adjust the position accordingly
+                        fixed_box = (850, 950, 50, 90)  # Adjust coordinates as needed
                         fixed_box_region = extract_region(frame, fixed_box)
-                        fixed_box_texts = read_text_with_easyocr(fixed_box_region)
+                        if fixed_box_region is not None and fixed_box_region.size > 0:
+                            fixed_box_texts = read_text_with_easyocr(fixed_box_region)
+                            fixed_box_text = ''.join([text for text, prob in fixed_box_texts])
 
-                        # Extract digit text from fixed box
-                        fixed_box_text = ''.join([text for text, prob in fixed_box_texts if text.isdigit()])
-
-                        if fixed_box_text:
-                            if int(fixed_box_text) > int(last_detected_speed_sign_text):
-                                speed_violations += 1
+                            if fixed_box_text and int(fixed_box_text) > int(last_detected_speed_sign_text):
+                                speed_violations += 1  # Speed violation detected
 
                     frame_count += 1
 
                 cap.release()
                 return speed_violations
 
-            # Process the uploaded video and count speed violations
-            violations = detect_speed_signs(video_path)
-            st.write(f"Total Speed Violations: {violations}")
+            # Process the uploaded video for speed signs
+            results = detect_speed_signs(video_path)
+            st.write(f"Total Speed Violations: {results}" if results is not None else "No violations detected.")
 
-# Distance Model Logic
 
-# Streamlit code to handle "Distance Model" page
+    # Distance Model Logic
 elif st.session_state.page == "Distance Model":
     st.title("Distance Model")
 
@@ -422,7 +460,6 @@ elif st.session_state.page == "Distance Model":
 
                 # Update the violation count display
                 violation_placeholder.text(f"Processing... Current violations detected: {violation_count}")
-
             cap.release()
 
             st.write(f"Total violations detected: {violation_count}")

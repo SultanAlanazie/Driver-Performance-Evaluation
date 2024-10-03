@@ -9,6 +9,7 @@ roboflow
 torch
 torchvision
 timm
+temp
 easyocr
 pytesseract
 tesseract
