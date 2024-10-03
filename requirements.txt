@@ -14,4 +14,4 @@ easyocr
 pytesseract
 tesseract
 IPython
-pydantic
+pydantic==1.10.2
