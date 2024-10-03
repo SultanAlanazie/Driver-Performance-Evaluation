@@ -4,8 +4,6 @@ streamlit
 openai
 langchain
 langchain-groq
-langchain-core
-langchain-text-splitters
 langsmith
 ultralytics
 roboflow
