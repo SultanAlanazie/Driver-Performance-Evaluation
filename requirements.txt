@@ -9,3 +9,7 @@ roboflow
 torch
 torchvision
 timm
+easyocr
+pytesseract
+tesseract
+IPython

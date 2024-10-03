@@ -6,6 +6,7 @@ from langchain.prompts import PromptTemplate
 from langchain import LLMChain
 from langchain_groq import ChatGroq
 from ultralytics import YOLO
+from IPython.display import display, Image
 
 # Create buttons for each page
 if st.sidebar.button("ChatBot"):
@@ -91,10 +92,8 @@ if st.session_state.page == "Welcome":
     st.write("مرحبا")
 
     # Display the welcome message
-    welcome_message = """! كيف يمكنني مساعدتك؟ من فضلك اختر أحد الخيارات التالية:\n
-    1. شرح حول كيفية استخدام النظام\n
-    2. متطلبات الفيديو\n
-    3. فوائد النظام\n"""
+    welcome_message = """كيف يمكنني مساعدتك؟ :\n
+    • مثال: ماهي طريقة القيادة الآمنة والصحيحة"""
     st.markdown(welcome_message)
 
     # Initialize session state for conversation history
