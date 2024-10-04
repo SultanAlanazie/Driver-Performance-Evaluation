@@ -8,7 +8,6 @@ langchain-groq
 ultralytics
 roboflow
 torch
-lap
 torchvision
 timm
 temp
