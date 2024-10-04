@@ -1,0 +1,6 @@
+cmake
+cython3
+liblapack-dev
+libblas-dev
+libopencv-dev
+build-essential
