@@ -1,5 +1,6 @@
 numpy
 opencv-python-headless
+opencv-python
 streamlit
 openai
 langchain
