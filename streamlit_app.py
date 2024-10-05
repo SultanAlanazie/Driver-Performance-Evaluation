@@ -345,9 +345,9 @@ if st.session_state.page == "Run All Models":
             with st.spinner("Processing Stop Sign Model..."):
                 stop_results = process_stop_sign_model(video_path, stop_model)
                 st.success("Stop Sign Model processed successfully!")
-                st.write(f"Total Stop Signs Encountered: {stop_results['total_stop_signs']}")
-                st.write(f"Total Times Stopped: {stop_results['total_stopped']}")
-                st.write(f"Total Times Not Stopped: {stop_results['total_not_stopped']}")
+                # st.write(f"Total Stop Signs Encountered: {stop_results['total_stop_signs']}") # debugging
+                # st.write(f"Total Times Stopped: {stop_results['total_stopped']}") # debugging
+                # st.write(f"Total Times Not Stopped: {stop_results['total_not_stopped']}") # debugging
 
                 # Collect not stopped count
                 not_stopped = stop_results['total_not_stopped']
@@ -356,13 +356,13 @@ if st.session_state.page == "Run All Models":
             with st.spinner("Processing Speed Model..."):
                 speed_violations = process_speed_model(video_path, speed_model, reader)
                 st.success("Speed Model processed successfully!")
-                st.write(f"Total Speed Violations: {speed_violations}")
+                # st.write(f"Total Speed Violations: {speed_violations}") # debugging
 
             # Distance Model
             with st.spinner("Processing Distance Model..."):
                 distance_violations = process_distance_model(video_path, distance_model)
                 st.success("Distance Model processed successfully!")
-                st.write(f"Total Distance Violations: {distance_violations}")
+                # st.write(f"Total Distance Violations: {distance_violations}") # debugging
 
             st.balloons()
             st.success("All models have been processed successfully!")
