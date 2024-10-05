@@ -17,4 +17,4 @@ pytesseract
 tesseract
 IPython
 pydantic
-lap
+lapx
