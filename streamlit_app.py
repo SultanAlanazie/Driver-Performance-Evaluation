@@ -4,14 +4,61 @@ import csv
 import tempfile
 import numpy as np
 from ultralytics import YOLO
+import pandas as pd
+from datetime import datetime
 import easyocr
 import time
 import os
-from datetime import datetime
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from langchain_groq import ChatGroq
 from IPython.display import display, Image
+
+groq_api_key = st.secrets["groq"]["groq_api_key"]
+llm = ChatGroq(
+    model='llama3-70b-8192',
+    temperature=0,
+    max_tokens=None,
+    timeout=None,
+    max_retries=2,
+    api_key=groq_api_key
+) 
+## the website that i got those instruction is from General Department of Traffic website -> Traffic Safety -> Safe Drive
+DRIVING_ASSISTANT_PROMPT_TEMPLATE = """
+### تعليمات:
+أنت مساعد ذكي متقدم ومتخصص في استخدام النطام باللغة العربية. مهمتك هي إرشاد مستخدمين النظام حول كيفيه استخدام النظام. لقد تم تدريبي على ما يلي:
+
+**متطلبات الستخدم عند استخدام نماذج الذكاء الصناعي:**
+• عند ارفاق مقطع فديو لنموذج, فأنه يجب الا يتعدى 100 ميقا بايت.
+• ان يكون الفيديو مصور بأستخدام الداش كام.
+• أن يكون موقع الداش كام في المركبه بمنتصف الزجاج الأمامي.
+• ان يكون المقطع المصور ببيئة صالحه للقيادة.
+• عند استخدام نموذج السرعه, يجب اضهار سرعه المركبة في المفطع.
+**عندما يرحب بك المستخدم, رد الترحيب**
+في البداية رحب بالمستخدم واظهر له خيارين مساعدين الاول هو عن ما اذا اراد معرفة متطلبات النظام او فائدة النظام وكيف يزيد من السلامة العامة.
+اعتمد على هذه المعلومات للإجابة على استفسارات المستخدم حول طريقة استخدام النظام.
+اشرح باختصار عن فائدة النظام باجاز.
+في حال كان السؤال غير واضح أو خارج نطاق هذه المعلومات، يرجى طلب التوضيح أو الرد بأدب بأنك لا تستطيع الإجابة.
+
+**إجابتك يجب أن تكون باللغة العربية**
+
+**if he asks a question related to about driving, provide him with the website for the General Department of Traffic 'https://www.moi.gov.sa' placeholder for the website: General Department of Traffic**
+
+---
+### السؤال: {subject}
+---
+### الإجابة:
+"""
+
+# Define prompt template for the chatbot
+prompt = PromptTemplate(
+    input_types={'subject': 'string', 'language': 'string'},
+    template=DRIVING_ASSISTANT_PROMPT_TEMPLATE
+)
+
+# Initialize the chain for the chatbot
+chain = LLMChain(llm=llm, prompt=prompt)
+
 
 # Function to process Stop Sign Model
 def process_stop_sign_model(video_path, model):
@@ -288,10 +335,10 @@ def load_models():
 stop_model, speed_model, distance_model, reader = load_models()
 
 # Function to append results to summary CSV
-def append_summary_csv(summary_csv_path, not_stopped, speed_violations, distance_violations):
+def append_summary_csv(summary_csv_path, city, not_stopped, speed_violations, distance_violations):
     file_exists = os.path.isfile(summary_csv_path)
     with open(summary_csv_path, 'a', newline='') as csvfile:
-        fieldnames = ['run_timestamp', 'cars_not_stopped_at_stop_signs', 'speed_violations', 'distance_violations']
+        fieldnames = ['run_timestamp', 'city','stop_sign_violations', 'speed_violations', 'distance_violations']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
         if not file_exists:
@@ -299,28 +346,81 @@ def append_summary_csv(summary_csv_path, not_stopped, speed_violations, distance
 
         writer.writerow({
             'run_timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            'cars_not_stopped_at_stop_signs': not_stopped,
+            'city':city,
+            'stop_sign_violations': not_stopped,
             'speed_violations': speed_violations,
-            'distance_violations': distance_violations
+            'distance_violations': distance_violations,
         })
 
 # Define path for the summary CSV
 SUMMARY_CSV_PATH = 'summary_results.csv'
 
 # Streamlit App Layout
-import pandas as pd
 
 # Streamlit App Layout
 st.sidebar.title("Navigation")
-if st.sidebar.button("Run All Models"):
+
+if st.sidebar.button("Admin Dashboard"):
+    st.session_state.page = "Admin Dashboard"
+
+if st.sidebar.button("User Dashboard"):
+    st.session_state.page = "User Dashboard"
+
+if st.sidebar.button("ChatBot"):
+    st.session_state.page = "ChatBot"
+
+if st.sidebar.button("Model"):
     st.session_state.page = "Run All Models"
 
 if 'page' not in st.session_state:
-    st.session_state.page = "Run All Models"
+    st.session_state.page = "User Dashboard"
 
+#    ---- ChatBot ----   
+if st.session_state.page == "ChatBot":
+    st.title("ChatBot")
+    st.write("مرحبا")
+
+    # Display the welcome message
+    welcome_message = """كيف يمكنني مساعدتك؟ :\n
+    • مثال: ماهي طريقة القيادة الآمنة والصحيحة"""
+    st.markdown(welcome_message)
+
+    # Initialize session state for conversation history
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    # Display previous messages in the conversation
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # User input section
+    if user_input := st.chat_input("Ask your driving question:"):
+        st.session_state.messages.append({"role": "user", "content": user_input})
+
+        # Display user's message
+        with st.chat_message("user"):
+            st.markdown(user_input)
+
+        # Process response from ChatGroq
+        subject = user_input
+        language = "Arabic"
+        response = chain.run(subject=subject, language=language)
+
+        # Display assistant's response
+        with st.chat_message("assistant"):
+            st.markdown(response)
+
+        # Append the assistant's response to session state
+        st.session_state.messages.append({"role": "assistant", "content": response})
+
+#    -------   models  ------
 if st.session_state.page == "Run All Models":
-    st.title("Traffic Video Analysis - Running All Models Sequentially")
-    
+    st.title("AI Traffic Video Analysis")
+    st.write()
+    cities = ['Other', 'Riyadh', 'Jeddah', 'Dammam', 'Makkah', 'Madinah']
+    city = st.selectbox("Select the city that the video recorded in:", cities)
+
     uploaded_file = st.file_uploader("Upload your driving video (max size: 100MB)", type=["mp4", "mov", "avi"])
 
     if uploaded_file:
@@ -345,30 +445,23 @@ if st.session_state.page == "Run All Models":
             with st.spinner("Processing Stop Sign Model..."):
                 stop_results = process_stop_sign_model(video_path, stop_model)
                 st.success("Stop Sign Model processed successfully!")
-                # st.write(f"Total Stop Signs Encountered: {stop_results['total_stop_signs']}") # debugging
-                # st.write(f"Total Times Stopped: {stop_results['total_stopped']}") # debugging
-                # st.write(f"Total Times Not Stopped: {stop_results['total_not_stopped']}") # debugging
-
-                # Collect not stopped count
                 not_stopped = stop_results['total_not_stopped']
 
             # Speed Model
             with st.spinner("Processing Speed Model..."):
                 speed_violations = process_speed_model(video_path, speed_model, reader)
                 st.success("Speed Model processed successfully!")
-                # st.write(f"Total Speed Violations: {speed_violations}") # debugging
 
             # Distance Model
             with st.spinner("Processing Distance Model..."):
                 distance_violations = process_distance_model(video_path, distance_model)
                 st.success("Distance Model processed successfully!")
-                # st.write(f"Total Distance Violations: {distance_violations}") # debugging
 
             st.balloons()
             st.success("All models have been processed successfully!")
 
             # Append results to summary CSV
-            append_summary_csv(SUMMARY_CSV_PATH, not_stopped, speed_violations, distance_violations)
+            append_summary_csv(SUMMARY_CSV_PATH, city, not_stopped, speed_violations, distance_violations)
 
             # Create a summary table using pandas
             summary_data = {
@@ -389,3 +482,93 @@ if st.session_state.page == "Run All Models":
                         file_name="summary_results.csv",
                         mime="text/csv"
                     )
+
+
+# Check if 'page' state exists and is set to "Admin Dashboard"
+import pandas as pd
+import streamlit as st
+import datetime
+
+if st.session_state.page == "Admin Dashboard":
+    st.header("Traffic Violations Dashboard")
+
+    # Load data
+    df = pd.read_csv("summary_results.csv")
+    # Ensure 'run_timestamp' is datetime
+    df['run_timestamp'] = pd.to_datetime(df['run_timestamp'])
+
+    # Time slicer for filtering data (between 2023 and 2026)
+    min_date = datetime.date(2023, 1, 1)
+    max_date = datetime.date(2026, 12, 31)
+
+    start_date, end_date = st.slider(
+        "Select Date Range:",
+        min_value=min_date,
+        max_value=max_date,
+        value=(min_date, max_date),
+        format="YYYY-MM-DD"
+    )
+
+    # Filter data based on the time range selected
+    filtered_data = df[(df['run_timestamp'] >= pd.to_datetime(start_date)) & (df['run_timestamp'] <= pd.to_datetime(end_date))]
+
+    # Create a selection box for cities
+    all_cities = ['All'] + filtered_data['city'].unique().tolist()  # Add 'All' option
+    selected_city = st.selectbox("Select City:", all_cities, index=0)
+
+    # Further filter the data based on selected city
+    if selected_city != 'All':
+        filtered_data = filtered_data[filtered_data['city'] == selected_city]
+
+    # Calculate summary statistics for the selected date range and city
+    cars_not_stopped = filtered_data['stop_sign_violations'].sum()
+    speed_violations = filtered_data['speed_violations'].sum()
+    distance_violations = filtered_data['distance_violations'].sum()
+
+    # Display the metrics in boxes
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Cars Not Stopped at Stop Signs", cars_not_stopped)
+    col2.metric("Speed Violations", speed_violations)
+    col3.metric("Distance Violations", distance_violations)
+
+    # Line chart for the selected date range
+    st.subheader("Violations Over Time")
+    chart_data = filtered_data.set_index('run_timestamp')[['stop_sign_violations', 'speed_violations', 'distance_violations']]
+    st.line_chart(chart_data)
+
+if st.session_state.page == "User Dashboard":
+    # Load the data
+    df = pd.read_csv("summary_results.csv")
+
+    # Ensure 'run_timestamp' is in datetime format
+    df['run_timestamp'] = pd.to_datetime(df['run_timestamp'])
+    # Get the last row (KPI) based on 'run_timestamp'
+    last_run = df.iloc[-1]
+
+    # Dashboard: Display KPI (the last run data)
+    st.header("User Dashboard")
+
+    # Display the last run KPI in 3 boxes (current values for the latest run)
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Cars Not Stopped (Last Run)", last_run['stop_sign_violations'])
+    col2.metric("Speed Violations (Last Run)", last_run['speed_violations'])
+    col3.metric("Distance Violations (Last Run)", last_run['distance_violations'])
+
+    # Calculate the total violations
+    total_cars_not_stopped = df['stop_sign_violations'].sum()
+    total_speed_violations = df['speed_violations'].sum()
+    total_distance_violations = df['distance_violations'].sum()
+
+    # Display total violations in boxes
+    st.subheader("Total Violations Overview")
+    col1_total, col2_total, col3_total = st.columns(3)
+    col1_total.metric("Total Cars Not Stopped at Stop Signs", total_cars_not_stopped)
+    col2_total.metric("Total Speed Violations", total_speed_violations)
+    col3_total.metric("Total Distance Violations", total_distance_violations)
+
+    # Line chart showing the violations over time
+    st.subheader("Violations Over Time")
+    chart_data = df.set_index('run_timestamp')[['stop_sign_violations', 'speed_violations', 'distance_violations']]
+    st.line_chart(chart_data)
+
+
