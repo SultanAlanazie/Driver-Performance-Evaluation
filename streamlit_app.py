@@ -417,9 +417,9 @@ if st.session_state.page == "ChatBot":
 #    -------   models  ------
 if st.session_state.page == "Run All Models":
     st.title("AI Traffic Video Analysis")
-    st.write()
     cities = ['Other', 'Riyadh', 'Jeddah', 'Dammam', 'Makkah', 'Madinah']
     city = st.selectbox("Select the city that the video recorded in:", cities)
+    st.write("Videos for testing: https://drive.google.com/drive/folders/1-bp2_C9PCtEpOyEzaAWX2sjthRIGJCTq?usp=sharing")
 
     uploaded_file = st.file_uploader("Upload your driving video (max size: 100MB)", type=["mp4", "mov", "avi"])
 
