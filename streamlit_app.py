@@ -23,7 +23,7 @@ llm = ChatGroq(
     max_retries=2,
     api_key=groq_api_key
 ) 
-## the website that i got those instruction is from General Department of Traffic website -> Traffic Safety -> Safe Drive
+## 
 DRIVING_ASSISTANT_PROMPT_TEMPLATE = """
 ### تعليمات:
 أنت مساعد ذكي متقدم ومتخصص في استخدام النطام باللغة العربية. مهمتك هي إرشاد مستخدمين النظام حول كيفيه استخدام النظام. لقد تم تدريبي على ما يلي:
@@ -100,7 +100,7 @@ def process_stop_sign_model(video_path, model):
                 break
 
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            results = model.track(frame, persist=True, conf=0.7)
+            results = model.track(frame, persist=True, conf=0.7, show=False)
             stop_sign_in_frame = False
 
             for result in results:
